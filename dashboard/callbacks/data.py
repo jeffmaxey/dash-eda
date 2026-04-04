@@ -15,6 +15,10 @@ from eda_core.analysis import get_overview, get_summary_stats
 from dashboard.components.cards import create_overview_cards, info_card
 
 
+# Maximum rows sent to AG Grid to maintain browser performance
+_MAX_GRID_ROWS = 10_000
+
+
 def register_data_callbacks(app: Any) -> None:
     """Register all data-management callbacks onto *app*."""
 
@@ -176,8 +180,8 @@ def register_data_callbacks(app: Any) -> None:
             raise PreventUpdate
 
         df = pd.read_json(json_data, orient="split")
-        # Limit preview to first 10 000 rows for performance
-        preview = df.head(10_000)
+        # Limit preview rows for browser performance
+        preview = df.head(_MAX_GRID_ROWS)
         col_defs = [{"field": col, "filter": True, "sortable": True} for col in preview.columns]
         row_data = preview.to_dict("records")
 

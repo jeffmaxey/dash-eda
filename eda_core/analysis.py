@@ -86,6 +86,11 @@ def get_missing_heatmap_data(df: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+_MAX_HISTOGRAM_BINS = 30
+_MIN_HISTOGRAM_BINS = 5
+_HISTOGRAM_BIN_DIVISOR = 10
+
+
 def get_column_distribution(df: pd.DataFrame, column: str) -> dict[str, Any]:
     """Return distribution data for a single column.
 
@@ -97,7 +102,10 @@ def get_column_distribution(df: pd.DataFrame, column: str) -> dict[str, Any]:
 
     if pd.api.types.is_numeric_dtype(series):
         clean = series.dropna()
-        counts, bin_edges = np.histogram(clean, bins=min(30, max(5, len(clean) // 10 + 1)))
+        counts, bin_edges = np.histogram(
+            clean,
+            bins=min(_MAX_HISTOGRAM_BINS, max(_MIN_HISTOGRAM_BINS, len(clean) // _HISTOGRAM_BIN_DIVISOR + 1)),
+        )
         stats: dict[str, Any] = {
             "mean": round(float(clean.mean()), 4) if len(clean) else None,
             "median": round(float(clean.median()), 4) if len(clean) else None,
