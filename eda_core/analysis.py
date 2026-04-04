@@ -102,10 +102,11 @@ def get_column_distribution(df: pd.DataFrame, column: str) -> dict[str, Any]:
 
     if pd.api.types.is_numeric_dtype(series):
         clean = series.dropna()
-        counts, bin_edges = np.histogram(
-            clean,
-            bins=min(_MAX_HISTOGRAM_BINS, max(_MIN_HISTOGRAM_BINS, len(clean) // _HISTOGRAM_BIN_DIVISOR + 1)),
+        n_bins = min(
+            _MAX_HISTOGRAM_BINS,
+            max(_MIN_HISTOGRAM_BINS, len(clean) // _HISTOGRAM_BIN_DIVISOR + 1),
         )
+        counts, bin_edges = np.histogram(clean, bins=n_bins)
         stats: dict[str, Any] = {
             "mean": round(float(clean.mean()), 4) if len(clean) else None,
             "median": round(float(clean.median()), 4) if len(clean) else None,

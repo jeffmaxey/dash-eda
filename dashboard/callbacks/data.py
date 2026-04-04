@@ -15,7 +15,13 @@ from eda_core.analysis import get_overview, get_summary_stats
 from dashboard.components.cards import create_overview_cards, info_card
 
 
-# Maximum rows sent to AG Grid to maintain browser performance
+def _fmt_cell(value: Any) -> str:
+    """Format a table cell value as a short string."""
+    if isinstance(value, float):
+        return f"{value:.4g}"
+    return str(value)
+
+
 _MAX_GRID_ROWS = 10_000
 
 
@@ -133,7 +139,7 @@ def register_data_callbacks(app: Any) -> None:
             summary_df = pd.DataFrame(num_summary)
             header_cells = [html.Th("Stat")] + [html.Th(c) for c in summary_df.columns]
             body_rows = [
-                html.Tr([html.Td(idx)] + [html.Td(f"{v:.4g}" if isinstance(v, float) else str(v)) for v in row])
+                html.Tr([html.Td(idx)] + [html.Td(_fmt_cell(v)) for v in row])
                 for idx, row in summary_df.iterrows()
             ]
             num_table = dmc.Table(

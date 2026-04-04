@@ -104,24 +104,30 @@ def create_layout() -> dmc.MantineProvider:
             ),
             # Overview
             dmc.TabsPanel(
-                dmc.LoadingOverlay(
-                    html.Div(
-                        dmc.Stack(
-                            [
-                                dmc.Text(
-                                    "Upload a dataset to begin exploration.",
-                                    c="dimmed",
-                                    ta="center",
-                                    mt="xl",
-                                )
-                            ],
-                            align="center",
+                dmc.Box(
+                    [
+                        dmc.LoadingOverlay(
+                            visible=False,
+                            id="overview-loading",
+                            overlayProps={"radius": "md"},
+                            zIndex=10,
                         ),
-                        id="overview-content",
-                    ),
-                    visible=False,
-                    id="overview-loading",
-                    overlayProps={"radius": "md"},
+                        html.Div(
+                            dmc.Stack(
+                                [
+                                    dmc.Text(
+                                        "Upload a dataset to begin exploration.",
+                                        c="dimmed",
+                                        ta="center",
+                                        mt="xl",
+                                    )
+                                ],
+                                align="center",
+                            ),
+                            id="overview-content",
+                        ),
+                    ],
+                    pos="relative",
                 ),
                 value="overview",
                 pt="md",
