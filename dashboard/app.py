@@ -8,6 +8,9 @@ from flask_caching import Cache
 from dashboard.layout import create_layout
 from dashboard.callbacks.data import register_data_callbacks
 from dashboard.callbacks.charts import register_chart_callbacks
+from dashboard.callbacks.preprocessing import register_preprocessing_callbacks
+from dashboard.callbacks.features import register_features_callbacks
+from dashboard.callbacks.modeling import register_modeling_callbacks
 
 
 def create_app(server=None) -> dash.Dash:
@@ -46,5 +49,8 @@ def create_app(server=None) -> dash.Dash:
     # Register callbacks
     register_data_callbacks(app)
     register_chart_callbacks(app)
+    register_preprocessing_callbacks(app)
+    register_features_callbacks(app)
+    register_modeling_callbacks(app)
 
     return app

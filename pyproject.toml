@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dash-eda"
-version = "0.1.0"
+version = "0.2.0"
 description = "Enterprise-grade Exploratory Data Analysis dashboard built with Dash and Mantine"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,9 @@ dependencies = [
     "openpyxl>=3.1.5",
     "flask-caching>=2.3.1",
     "click>=8.1.6",
+    "scikit-learn>=1.5.0",
+    "scipy>=1.13.0",
+    "joblib>=1.4.0",
 ]
 
 [project.scripts]
