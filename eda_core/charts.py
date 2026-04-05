@@ -194,3 +194,292 @@ def time_series_plot(df: pd.DataFrame, x_col: str, y_col: str) -> dict[str, Any]
         margin={"t": 60, "b": 40},
     )
     return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Outlier visualisation
+# ---------------------------------------------------------------------------
+
+
+def outlier_box_plot(df: pd.DataFrame, column: str) -> dict[str, Any]:
+    """Box plot highlighting IQR outliers for *column*."""
+    from eda_core.analysis import detect_outliers
+
+    info = detect_outliers(df, column)
+    series = df[column].dropna()
+    lower = info["bounds"]["lower"]
+    upper = info["bounds"]["upper"]
+    is_outlier = (series < lower) | (series > upper)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Box(
+            y=series.values.tolist(),
+            name=column,
+            marker_color="#4C6EF5",
+            boxpoints="outliers",
+            hovertemplate="%{y:.4f}<extra></extra>",
+        )
+    )
+    fig.add_hline(y=lower, line_dash="dash", line_color="red", annotation_text=f"Lower: {lower}")
+    fig.add_hline(y=upper, line_dash="dash", line_color="red", annotation_text=f"Upper: {upper}")
+    fig.update_layout(
+        title=f"Box Plot – {column} ({int(is_outlier.sum())} outliers)",
+        template="plotly_white",
+        margin={"t": 60, "b": 40},
+        height=400,
+    )
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Bivariate charts
+# ---------------------------------------------------------------------------
+
+
+def bivariate_scatter(
+    df: pd.DataFrame,
+    col_x: str,
+    col_y: str,
+    color_col: str | None = None,
+    trendline: bool = True,
+) -> dict[str, Any]:
+    """Scatter plot with optional OLS trendline for two numeric columns."""
+    kwargs: dict[str, Any] = {
+        "x": col_x,
+        "y": col_y,
+        "template": "plotly_white",
+        "opacity": 0.7,
+    }
+    if color_col and color_col in df.columns:
+        kwargs["color"] = color_col
+    if trendline:
+        kwargs["trendline"] = "ols"
+    try:
+        fig = px.scatter(df.dropna(subset=[col_x, col_y]), **kwargs)
+    except Exception:
+        kwargs.pop("trendline", None)
+        fig = px.scatter(df.dropna(subset=[col_x, col_y]), **kwargs)
+    fig.update_layout(
+        title=f"{col_x} vs {col_y}",
+        margin={"t": 60, "b": 40},
+        height=450,
+    )
+    return fig.to_dict()
+
+
+def grouped_box_plot(
+    df: pd.DataFrame,
+    num_col: str,
+    cat_col: str,
+) -> dict[str, Any]:
+    """Box plot of *num_col* grouped by *cat_col*."""
+    fig = px.box(
+        df.dropna(subset=[num_col, cat_col]),
+        x=cat_col,
+        y=num_col,
+        template="plotly_white",
+        color=cat_col,
+    )
+    fig.update_layout(
+        title=f"{num_col} by {cat_col}",
+        margin={"t": 60, "b": 60},
+        height=420,
+        showlegend=False,
+    )
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Feature importance chart
+# ---------------------------------------------------------------------------
+
+
+def feature_importance_bar(
+    importances: dict[str, float],
+    title: str = "Feature Importances",
+) -> dict[str, Any]:
+    """Horizontal bar chart of feature importances."""
+    if not importances:
+        return _empty_figure("No feature importances available")
+
+    items = sorted(importances.items(), key=lambda x: x[1])
+    features = [i[0] for i in items]
+    values = [i[1] for i in items]
+
+    fig = go.Figure(
+        go.Bar(
+            x=values,
+            y=features,
+            orientation="h",
+            marker_color="#4C6EF5",
+            hovertemplate="%{y}: %{x:.4f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=title,
+        xaxis_title="Importance",
+        template="plotly_white",
+        margin={"t": 60, "b": 40, "l": 140, "r": 40},
+        height=max(300, len(features) * 25 + 100),
+    )
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Model evaluation charts
+# ---------------------------------------------------------------------------
+
+
+def confusion_matrix_heatmap(cm: list[list[int]], labels: list[Any]) -> dict[str, Any]:
+    """Heatmap of a confusion matrix."""
+    str_labels = [str(lbl) for lbl in labels]
+    text = [[str(v) for v in row] for row in cm]
+    fig = go.Figure(
+        go.Heatmap(
+            z=cm,
+            x=str_labels,
+            y=str_labels,
+            colorscale="Blues",
+            text=text,
+            texttemplate="%{text}",
+            hovertemplate="Predicted: %{x}<br>Actual: %{y}<br>Count: %{z}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title="Confusion Matrix",
+        xaxis_title="Predicted",
+        yaxis_title="Actual",
+        template="plotly_white",
+        margin={"t": 60, "b": 60, "l": 60, "r": 40},
+        height=max(300, len(labels) * 60 + 100),
+    )
+    return fig.to_dict()
+
+
+def roc_curve_plot(fpr: list[float], tpr: list[float], auc: float) -> dict[str, Any]:
+    """ROC curve with AUC annotation."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=fpr,
+            y=tpr,
+            mode="lines",
+            name=f"ROC (AUC={auc:.3f})",
+            line={"color": "#4C6EF5", "width": 2},
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode="lines",
+            name="Random",
+            line={"color": "gray", "dash": "dash"},
+        )
+    )
+    fig.update_layout(
+        title=f"ROC Curve  (AUC = {auc:.4f})",
+        xaxis_title="False Positive Rate",
+        yaxis_title="True Positive Rate",
+        template="plotly_white",
+        margin={"t": 60, "b": 60},
+        height=400,
+    )
+    return fig.to_dict()
+
+
+def residuals_plot(y_test: list[float], y_pred: list[float]) -> dict[str, Any]:
+    """Scatter of residuals vs predicted values."""
+    y_test_arr = list(y_test)
+    y_pred_arr = list(y_pred)
+    residuals = [a - b for a, b in zip(y_test_arr, y_pred_arr)]
+    fig = go.Figure(
+        go.Scatter(
+            x=y_pred_arr,
+            y=residuals,
+            mode="markers",
+            marker={"color": "#4C6EF5", "opacity": 0.6, "size": 6},
+            hovertemplate="Predicted: %{x:.3f}<br>Residual: %{y:.3f}<extra></extra>",
+        )
+    )
+    fig.add_hline(y=0, line_dash="dash", line_color="red")
+    fig.update_layout(
+        title="Residuals vs Predicted",
+        xaxis_title="Predicted",
+        yaxis_title="Residual",
+        template="plotly_white",
+        margin={"t": 60, "b": 60},
+        height=380,
+    )
+    return fig.to_dict()
+
+
+def actual_vs_predicted_plot(y_test: list[float], y_pred: list[float]) -> dict[str, Any]:
+    """Actual vs Predicted scatter with identity line."""
+    y_test_arr = list(y_test)
+    y_pred_arr = list(y_pred)
+    mn = min(min(y_test_arr), min(y_pred_arr))
+    mx = max(max(y_test_arr), max(y_pred_arr))
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=y_pred_arr,
+            y=y_test_arr,
+            mode="markers",
+            marker={"color": "#4C6EF5", "opacity": 0.6, "size": 6},
+            name="Samples",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[mn, mx],
+            y=[mn, mx],
+            mode="lines",
+            name="Perfect fit",
+            line={"color": "red", "dash": "dash"},
+        )
+    )
+    fig.update_layout(
+        title="Actual vs Predicted",
+        xaxis_title="Predicted",
+        yaxis_title="Actual",
+        template="plotly_white",
+        margin={"t": 60, "b": 60},
+        height=400,
+    )
+    return fig.to_dict()
+
+
+def model_comparison_bar(results: list[dict[str, Any]], metric: str) -> dict[str, Any]:
+    """Bar chart comparing multiple models on a single metric."""
+    names = []
+    values = []
+    for r in results:
+        if "error" in r:
+            continue
+        names.append(r.get("model_name", "?"))
+        values.append(r.get("metrics", {}).get(metric, 0))
+
+    if not names:
+        return _empty_figure("No model results available")
+
+    max_val = max(values) if values else 0
+    colors = ["#4C6EF5" if v == max_val else "#ADB5BD" for v in values]
+    fig = go.Figure(
+        go.Bar(
+            x=names,
+            y=values,
+            marker_color=colors,
+            hovertemplate="%{x}: %{y:.4f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=f"Model Comparison – {metric}",
+        xaxis_title="Model",
+        yaxis_title=metric,
+        template="plotly_white",
+        margin={"t": 60, "b": 80},
+        height=380,
+    )
+    return fig.to_dict()

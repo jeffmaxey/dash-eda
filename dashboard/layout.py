@@ -13,7 +13,13 @@ NAV_ITEMS = [
     ("Statistics", "statistics", "📈"),
     ("Correlations", "correlations", "🔗"),
     ("Distributions", "distributions", "📊"),
+    ("Bivariate", "bivariate", "🔬"),
+    ("Multivariate", "multivariate", "🧮"),
     ("Missing Values", "missing", "❓"),
+    ("Preprocessing", "preprocessing", "⚙️"),
+    ("Features", "features", "🧩"),
+    ("Modeling", "modeling", "🤖"),
+    ("Predictions", "predictions", "🎯"),
     ("Data Grid", "datagrid", "🗂️"),
 ]
 
@@ -41,16 +47,19 @@ def create_layout() -> dmc.MantineProvider:
                     dmc.Text("Navigation", size="xs", c="dimmed", fw=600, tt="uppercase", p="sm"),
                 ),
                 dmc.AppShellSection(
-                    dmc.Stack(
-                        [_nav_item(label, val, icon) for label, val, icon in NAV_ITEMS],
-                        gap=2,
-                        p="xs",
+                    dmc.ScrollArea(
+                        dmc.Stack(
+                            [_nav_item(label, val, icon) for label, val, icon in NAV_ITEMS],
+                            gap=2,
+                            p="xs",
+                        ),
+                        style={"height": "calc(100vh - 140px)"},
                     ),
                     grow=True,
                 ),
                 dmc.AppShellSection(
                     dmc.Text(
-                        "Dash EDA v0.1.0",
+                        "Dash EDA v0.2.0",
                         size="xs",
                         c="dimmed",
                         ta="center",
@@ -100,7 +109,7 @@ def create_layout() -> dmc.MantineProvider:
                     dmc.TabsTab(label, value=val)
                     for label, val, _ in NAV_ITEMS
                 ],
-                grow=True,
+                grow=False,
             ),
             # Overview
             dmc.TabsPanel(
@@ -154,12 +163,23 @@ def create_layout() -> dmc.MantineProvider:
             dmc.TabsPanel(
                 dmc.Stack(
                     [
-                        dmc.Select(
-                            id="distribution-column-select",
-                            label="Select column",
-                            placeholder="Choose a column…",
-                            data=[],
-                            w=300,
+                        dmc.Group(
+                            [
+                                dmc.Select(
+                                    id="distribution-column-select",
+                                    label="Select column",
+                                    placeholder="Choose a column…",
+                                    data=[],
+                                    w=300,
+                                ),
+                                dmc.Switch(
+                                    id="distribution-show-outliers",
+                                    label="Show outlier box plot",
+                                    checked=False,
+                                    mt="lg",
+                                ),
+                            ],
+                            align="flex-end",
                         ),
                         html.Div(
                             dmc.Text("Upload a dataset to view distributions.", c="dimmed", ta="center", mt="xl"),
@@ -171,6 +191,56 @@ def create_layout() -> dmc.MantineProvider:
                 value="distributions",
                 pt="md",
             ),
+            # Bivariate
+            dmc.TabsPanel(
+                dmc.Stack(
+                    [
+                        dmc.Group(
+                            [
+                                dmc.Select(
+                                    id="bivariate-x-select",
+                                    label="X column",
+                                    placeholder="Choose X…",
+                                    data=[],
+                                    w=240,
+                                ),
+                                dmc.Select(
+                                    id="bivariate-y-select",
+                                    label="Y column",
+                                    placeholder="Choose Y…",
+                                    data=[],
+                                    w=240,
+                                ),
+                                dmc.Select(
+                                    id="bivariate-color-select",
+                                    label="Color by (optional)",
+                                    placeholder="None",
+                                    data=[],
+                                    w=200,
+                                    clearable=True,
+                                ),
+                            ],
+                            align="flex-end",
+                        ),
+                        html.Div(
+                            dmc.Text("Upload a dataset to explore bivariate relationships.", c="dimmed", ta="center", mt="xl"),
+                            id="bivariate-content",
+                        ),
+                    ],
+                    gap="md",
+                ),
+                value="bivariate",
+                pt="md",
+            ),
+            # Multivariate
+            dmc.TabsPanel(
+                html.Div(
+                    dmc.Text("Upload a dataset to view multivariate analysis.", c="dimmed", ta="center", mt="xl"),
+                    id="multivariate-content",
+                ),
+                value="multivariate",
+                pt="md",
+            ),
             # Missing Values
             dmc.TabsPanel(
                 html.Div(
@@ -178,6 +248,354 @@ def create_layout() -> dmc.MantineProvider:
                     id="missing-content",
                 ),
                 value="missing",
+                pt="md",
+            ),
+            # Preprocessing
+            dmc.TabsPanel(
+                dmc.Stack(
+                    [
+                        dmc.Accordion(
+                            [
+                                dmc.AccordionItem(
+                                    [
+                                        dmc.AccordionControl("Missing Value Imputation"),
+                                        dmc.AccordionPanel(
+                                            dmc.Stack(
+                                                [
+                                                    dmc.Group(
+                                                        [
+                                                            dmc.Select(
+                                                                id="impute-strategy-select",
+                                                                label="Strategy",
+                                                                data=["mean", "median", "mode", "constant", "drop"],
+                                                                value="mean",
+                                                                w=200,
+                                                            ),
+                                                            dmc.TextInput(
+                                                                id="impute-constant-value",
+                                                                label="Constant value",
+                                                                placeholder="0",
+                                                                w=160,
+                                                            ),
+                                                            dmc.Button(
+                                                                "Apply Imputation",
+                                                                id="impute-apply-btn",
+                                                                color="blue",
+                                                                mt="lg",
+                                                            ),
+                                                        ],
+                                                        align="flex-end",
+                                                    ),
+                                                    html.Div(id="impute-result"),
+                                                ],
+                                                gap="sm",
+                                            ),
+                                        ),
+                                    ],
+                                    value="imputation",
+                                ),
+                                dmc.AccordionItem(
+                                    [
+                                        dmc.AccordionControl("Outlier Treatment"),
+                                        dmc.AccordionPanel(
+                                            dmc.Stack(
+                                                [
+                                                    dmc.Group(
+                                                        [
+                                                            dmc.Select(
+                                                                id="outlier-col-select",
+                                                                label="Column",
+                                                                placeholder="Choose column…",
+                                                                data=[],
+                                                                w=200,
+                                                            ),
+                                                            dmc.Select(
+                                                                id="outlier-method-select",
+                                                                label="Detection method",
+                                                                data=["iqr", "zscore"],
+                                                                value="iqr",
+                                                                w=160,
+                                                            ),
+                                                            dmc.Select(
+                                                                id="outlier-action-select",
+                                                                label="Action",
+                                                                data=["cap", "remove", "flag"],
+                                                                value="cap",
+                                                                w=140,
+                                                            ),
+                                                            dmc.Button(
+                                                                "Apply",
+                                                                id="outlier-apply-btn",
+                                                                color="orange",
+                                                                mt="lg",
+                                                            ),
+                                                        ],
+                                                        align="flex-end",
+                                                    ),
+                                                    html.Div(id="outlier-treatment-result"),
+                                                ],
+                                                gap="sm",
+                                            ),
+                                        ),
+                                    ],
+                                    value="outliers",
+                                ),
+                                dmc.AccordionItem(
+                                    [
+                                        dmc.AccordionControl("Column Transformation"),
+                                        dmc.AccordionPanel(
+                                            dmc.Stack(
+                                                [
+                                                    dmc.Group(
+                                                        [
+                                                            dmc.Select(
+                                                                id="transform-col-select",
+                                                                label="Column",
+                                                                placeholder="Choose column…",
+                                                                data=[],
+                                                                w=200,
+                                                            ),
+                                                            dmc.Select(
+                                                                id="transform-method-select",
+                                                                label="Transformation",
+                                                                data=[
+                                                                    "log1p", "sqrt", "square",
+                                                                    "standardize", "normalize",
+                                                                    "boxcox", "yeojohnson",
+                                                                ],
+                                                                value="log1p",
+                                                                w=180,
+                                                            ),
+                                                            dmc.Button(
+                                                                "Apply",
+                                                                id="transform-apply-btn",
+                                                                color="teal",
+                                                                mt="lg",
+                                                            ),
+                                                        ],
+                                                        align="flex-end",
+                                                    ),
+                                                    html.Div(id="transform-result"),
+                                                ],
+                                                gap="sm",
+                                            ),
+                                        ),
+                                    ],
+                                    value="transformation",
+                                ),
+                                dmc.AccordionItem(
+                                    [
+                                        dmc.AccordionControl("Categorical Encoding"),
+                                        dmc.AccordionPanel(
+                                            dmc.Stack(
+                                                [
+                                                    dmc.Group(
+                                                        [
+                                                            dmc.Select(
+                                                                id="encode-col-select",
+                                                                label="Column",
+                                                                placeholder="Choose column…",
+                                                                data=[],
+                                                                w=200,
+                                                            ),
+                                                            dmc.Select(
+                                                                id="encode-method-select",
+                                                                label="Encoding",
+                                                                data=["label", "onehot", "frequency"],
+                                                                value="label",
+                                                                w=160,
+                                                            ),
+                                                            dmc.Button(
+                                                                "Apply",
+                                                                id="encode-apply-btn",
+                                                                color="violet",
+                                                                mt="lg",
+                                                            ),
+                                                        ],
+                                                        align="flex-end",
+                                                    ),
+                                                    html.Div(id="encode-result"),
+                                                ],
+                                                gap="sm",
+                                            ),
+                                        ),
+                                    ],
+                                    value="encoding",
+                                ),
+                            ],
+                            multiple=True,
+                            value=["imputation"],
+                        ),
+                        html.Div(id="preprocessing-summary"),
+                    ],
+                    gap="md",
+                ),
+                value="preprocessing",
+                pt="md",
+            ),
+            # Features
+            dmc.TabsPanel(
+                dmc.Stack(
+                    [
+                        dmc.Group(
+                            [
+                                dmc.Select(
+                                    id="feature-target-select",
+                                    label="Target column",
+                                    placeholder="Select target…",
+                                    data=[],
+                                    w=220,
+                                ),
+                                dmc.Select(
+                                    id="feature-problem-type",
+                                    label="Problem type",
+                                    data=["regression", "classification"],
+                                    value="regression",
+                                    w=180,
+                                ),
+                                dmc.NumberInput(
+                                    id="feature-k-select",
+                                    label="Top K features",
+                                    value=10,
+                                    min=1,
+                                    max=50,
+                                    w=140,
+                                ),
+                                dmc.Button(
+                                    "Analyse Features",
+                                    id="feature-analyse-btn",
+                                    color="blue",
+                                    mt="lg",
+                                ),
+                            ],
+                            align="flex-end",
+                        ),
+                        html.Div(
+                            dmc.Text("Configure target column and click Analyse Features.", c="dimmed", ta="center", mt="xl"),
+                            id="features-content",
+                        ),
+                    ],
+                    gap="md",
+                ),
+                value="features",
+                pt="md",
+            ),
+            # Modeling
+            dmc.TabsPanel(
+                dmc.Stack(
+                    [
+                        dmc.Paper(
+                            dmc.Stack(
+                                [
+                                    dmc.Text("Experiment Design", fw=600, size="lg"),
+                                    dmc.Divider(),
+                                    dmc.Group(
+                                        [
+                                            dmc.Select(
+                                                id="model-target-select",
+                                                label="Target column",
+                                                placeholder="Select target…",
+                                                data=[],
+                                                w=220,
+                                            ),
+                                            dmc.Select(
+                                                id="model-problem-type",
+                                                label="Problem type",
+                                                data=["regression", "classification"],
+                                                value="regression",
+                                                w=180,
+                                            ),
+                                            dmc.Select(
+                                                id="model-test-size",
+                                                label="Test size",
+                                                data=["0.1", "0.2", "0.25", "0.3"],
+                                                value="0.2",
+                                                w=120,
+                                            ),
+                                            dmc.Switch(
+                                                id="model-scale-features",
+                                                label="Scale features",
+                                                checked=False,
+                                                mt="lg",
+                                            ),
+                                        ],
+                                        align="flex-end",
+                                    ),
+                                    dmc.MultiSelect(
+                                        id="model-select",
+                                        label="Models to train",
+                                        placeholder="Select one or more models…",
+                                        data=[],
+                                        w="100%",
+                                    ),
+                                    dmc.Group(
+                                        [
+                                            dmc.Button(
+                                                "Train & Evaluate",
+                                                id="model-train-btn",
+                                                color="blue",
+                                                size="md",
+                                            ),
+                                            dmc.Button(
+                                                "Compare All",
+                                                id="model-compare-btn",
+                                                color="teal",
+                                                size="md",
+                                                variant="outline",
+                                            ),
+                                        ],
+                                        gap="sm",
+                                    ),
+                                ],
+                                gap="sm",
+                            ),
+                            withBorder=True,
+                            radius="md",
+                            p="md",
+                        ),
+                        html.Div(id="model-loading-indicator"),
+                        html.Div(
+                            dmc.Text("Configure experiment and click Train & Evaluate.", c="dimmed", ta="center", mt="xl"),
+                            id="modeling-content",
+                        ),
+                    ],
+                    gap="md",
+                ),
+                value="modeling",
+                pt="md",
+            ),
+            # Predictions
+            dmc.TabsPanel(
+                dmc.Stack(
+                    [
+                        dmc.Alert(
+                            "Train a model first on the Modeling tab, then return here to generate predictions.",
+                            title="ℹ️ Instructions",
+                            color="blue",
+                            id="predictions-alert",
+                        ),
+                        dmc.Group(
+                            [
+                                dmc.Button(
+                                    "Generate Predictions on Test Set",
+                                    id="predict-btn",
+                                    color="blue",
+                                ),
+                                dmc.Button(
+                                    "Download Model (.joblib)",
+                                    id="model-download-btn",
+                                    color="teal",
+                                    variant="outline",
+                                ),
+                                dcc.Download(id="model-download"),
+                            ],
+                            gap="sm",
+                        ),
+                        html.Div(id="predictions-content"),
+                    ],
+                    gap="md",
+                ),
+                value="predictions",
                 pt="md",
             ),
             # Data Grid
@@ -219,7 +637,7 @@ def create_layout() -> dmc.MantineProvider:
             navbar_content,
             main_content,
         ],
-        navbar={"width": 250, "breakpoint": "sm", "collapsed": {"mobile": True}},
+        navbar={"width": 260, "breakpoint": "sm", "collapsed": {"mobile": True}},
         header={"height": 60},
         padding="0",
     )
@@ -227,6 +645,8 @@ def create_layout() -> dmc.MantineProvider:
     return dmc.MantineProvider(
         children=[
             dcc.Store(id="data-store", storage_type="memory"),
+            dcc.Store(id="preprocessed-store", storage_type="memory"),
+            dcc.Store(id="model-result-store", storage_type="memory"),
             app_shell,
         ],
         theme={
@@ -236,3 +656,5 @@ def create_layout() -> dmc.MantineProvider:
         defaultColorScheme="light",
         id="mantine-provider",
     )
+
+

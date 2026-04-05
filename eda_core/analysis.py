@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy import stats as scipy_stats
 
 
 def get_overview(df: pd.DataFrame) -> dict[str, Any]:
@@ -168,3 +169,119 @@ def parse_upload(contents: str, filename: str) -> pd.DataFrame:
     _content_type, content_string = contents.split(",", 1)
     decoded = base64.b64decode(content_string)
     return load_dataframe(io.BytesIO(decoded), filename)
+
+
+# ---------------------------------------------------------------------------
+# Bivariate analysis
+# ---------------------------------------------------------------------------
+
+
+def get_bivariate_stats(
+    df: pd.DataFrame,
+    col_x: str,
+    col_y: str,
+) -> dict[str, Any]:
+    """Return bivariate statistics between two columns.
+
+    Works for numeric–numeric, numeric–categorical, and
+    categorical–categorical pairs.
+    """
+    x_numeric = pd.api.types.is_numeric_dtype(df[col_x])
+    y_numeric = pd.api.types.is_numeric_dtype(df[col_y])
+    clean = df[[col_x, col_y]].dropna()
+
+    result: dict[str, Any] = {
+        "col_x": col_x,
+        "col_y": col_y,
+        "n": len(clean),
+    }
+
+    if x_numeric and y_numeric:
+        pearson_r, pearson_p = scipy_stats.pearsonr(clean[col_x], clean[col_y])
+        spearman_r, spearman_p = scipy_stats.spearmanr(clean[col_x], clean[col_y])
+        result.update(
+            {
+                "type": "numeric_numeric",
+                "pearson_r": round(float(pearson_r), 4),
+                "pearson_p": round(float(pearson_p), 6),
+                "spearman_r": round(float(spearman_r), 4),
+                "spearman_p": round(float(spearman_p), 6),
+            }
+        )
+    elif x_numeric != y_numeric:
+        num_col, cat_col = (col_x, col_y) if x_numeric else (col_y, col_x)
+        groups = [grp[num_col].dropna().values for _, grp in clean.groupby(cat_col)]
+        if len(groups) >= 2:
+            f_stat, p_val = scipy_stats.f_oneway(*groups)
+        else:
+            f_stat, p_val = float("nan"), float("nan")
+        grouped_stats: dict[str, Any] = {}
+        for cat_val, grp in clean.groupby(cat_col):
+            s = grp[num_col]
+            grouped_stats[str(cat_val)] = {
+                "mean": round(float(s.mean()), 4),
+                "median": round(float(s.median()), 4),
+                "std": round(float(s.std()), 4),
+                "n": int(len(s)),
+            }
+        result.update(
+            {
+                "type": "numeric_categorical",
+                "numeric_col": num_col,
+                "categorical_col": cat_col,
+                "anova_f": round(float(f_stat), 4) if not np.isnan(f_stat) else None,
+                "anova_p": round(float(p_val), 6) if not np.isnan(p_val) else None,
+                "grouped_stats": grouped_stats,
+            }
+        )
+    else:
+        ct = pd.crosstab(clean[col_x], clean[col_y])
+        chi2, p_val, dof, _ = scipy_stats.chi2_contingency(ct)
+        result.update(
+            {
+                "type": "categorical_categorical",
+                "chi2": round(float(chi2), 4),
+                "chi2_p": round(float(p_val), 6),
+                "dof": int(dof),
+                "crosstab": ct.to_dict(),
+            }
+        )
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Multivariate analysis
+# ---------------------------------------------------------------------------
+
+
+def get_multivariate_summary(df: pd.DataFrame) -> dict[str, Any]:
+    """Return a summary for multivariate numeric analysis.
+
+    Includes variance-inflation-factor (VIF) approximation (pairwise max
+    correlation-based) and eigenvalue-based dimensionality hints.
+    """
+    numeric_df = df.select_dtypes(include="number").dropna()
+    if numeric_df.shape[1] < 2:
+        return {"vif": {}, "eigenvalues": [], "explained_variance_pct": []}
+
+    corr = numeric_df.corr()
+    eigenvalues = np.linalg.eigvalsh(corr.values)
+    eigenvalues = sorted(eigenvalues.tolist(), reverse=True)
+    total = sum(eigenvalues) or 1
+    explained_pct = [round(e / total * 100, 2) for e in eigenvalues]
+
+    # Approximate VIF: 1 / (1 - R²_j) where R²_j ≈ max squared corr with others
+    vif: dict[str, float] = {}
+    cols = corr.columns.tolist()
+    for col in cols:
+        other_corrs = corr[col].drop(col).abs()
+        max_r = float(other_corrs.max()) if len(other_corrs) else 0.0
+        r2 = max_r ** 2
+        vif[col] = round(1 / (1 - r2) if r2 < 1 else float("inf"), 4)
+
+    return {
+        "vif": vif,
+        "eigenvalues": [round(e, 4) for e in eigenvalues],
+        "explained_variance_pct": explained_pct,
+    }
